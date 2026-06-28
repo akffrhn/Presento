@@ -48,9 +48,62 @@ if (!$is_authorized_admin) {
 $is_high_council = ($session_role === 'cycom' && $session_club_role === 'High Council');
 
 // Fetch ALL users for the table, excluding the placeholder "Deleted User" account
-$stmt_users = $condb->prepare("SELECT * FROM user WHERE user_id != ? ORDER BY fname ASC");
+// Optional search by specific column or all columns
+$search     = trim($_GET['search'] ?? '');
+$search_col = $_GET['search_col'] ?? 'all';
 $deleted_id = DELETED_USER_ID;
-$stmt_users->bind_param("i", $deleted_id);
+
+$allowed_cols = [
+    'all'      => null,
+    'name'     => "CONCAT(fname, ' ', lname)",
+    'email'    => 'email',
+    'matric'   => 'CAST(user_id AS CHAR)',
+    'phone'    => 'phonenum',
+    'role'     => 'role',
+    'clubrole' => 'clubrole',
+];
+
+// Silently fall back to 'all' if an unexpected column is supplied
+if (!array_key_exists($search_col, $allowed_cols)) {
+    $search_col = 'all';
+}
+
+if ($search !== '') {
+    $likeTerm = '%' . $search . '%';
+
+    if ($search_col === 'all') {
+        $stmt_users = $condb->prepare(
+            "SELECT * FROM user
+             WHERE user_id != ?
+               AND (CONCAT(fname, ' ', lname) LIKE ?
+                    OR email                  LIKE ?
+                    OR CAST(user_id AS CHAR)  LIKE ?
+                    OR phonenum               LIKE ?
+                    OR role                   LIKE ?
+                    OR clubrole               LIKE ?)
+             ORDER BY fname ASC"
+        );
+        $stmt_users->bind_param(
+            "issssss",
+            $deleted_id,
+            $likeTerm, $likeTerm, $likeTerm,
+            $likeTerm, $likeTerm, $likeTerm
+        );
+    } else {
+        $col_expr = $allowed_cols[$search_col]; // safe: comes from our own whitelist
+        $stmt_users = $condb->prepare(
+            "SELECT * FROM user
+             WHERE user_id != ?
+               AND {$col_expr} LIKE ?
+             ORDER BY fname ASC"
+        );
+        $stmt_users->bind_param("is", $deleted_id, $likeTerm);
+    }
+} else {
+    $stmt_users = $condb->prepare("SELECT * FROM user WHERE user_id != ? ORDER BY fname ASC");
+    $stmt_users->bind_param("i", $deleted_id);
+}
+
 $stmt_users->execute();
 $users = $stmt_users->get_result();
 ?>
@@ -123,8 +176,55 @@ $users = $stmt_users->get_result();
 
         .new-user-btn {
             display: inline-block;
-            margin-bottom: 1rem;
             color: #fff;
+            text-decoration: underline;
+        }
+
+        .user-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .search-form {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .search-form select {
+            padding: 6px 10px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            background: #fff;
+            color: #491231;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .search-form input[type="text"] {
+            padding: 6px 10px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+        }
+
+        .search-form button {
+            padding: 6px 14px;
+            border-radius: 4px;
+            border: none;
+            background: #fff;
+            color: #491231;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .search-form .clear-link {
+            color: #fff;
+            align-self: center;
             text-decoration: underline;
         }
     </style>
@@ -141,13 +241,50 @@ $users = $stmt_users->get_result();
 
             <h3>User List</h3>
 
-            <?php if ($is_high_council): ?>
-                <div style="text-align:right;">
+            <div class="user-toolbar">
+
+                <form method="GET" action="" class="search-form">
+
+                    <select name="search_col">
+                        <?php
+                        $col_labels = [
+                            'all'      => 'All columns',
+                            'name'     => 'Name',
+                            'email'    => 'Email',
+                            'matric'   => 'Matric number',
+                            'phone'    => 'Phone number',
+                            'role'     => 'Role',
+                            'clubrole' => 'Club role',
+                        ];
+                        foreach ($col_labels as $val => $label): ?>
+                            <option value="<?= $val ?>"
+                                <?= ($search_col === $val) ? 'selected' : '' ?>>
+                                <?= htmlspecialchars($label) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+
+                    <input
+                        type="text"
+                        name="search"
+                        value="<?= htmlspecialchars($search) ?>"
+                        placeholder="Enter search term…"
+                    >
+                    <button type="submit">Search</button>
+
+                    <?php if ($search !== ''): ?>
+                        <a href="user-list.php" class="clear-link">Clear</a>
+                    <?php endif; ?>
+
+                </form>
+
+                <?php if ($is_high_council): ?>
                     <a class="new-user-btn" href="user-register.php?user_id=<?= htmlspecialchars($user['user_id']) ?>">
                         + New User
                     </a>
-                </div>
-            <?php endif; ?>
+                <?php endif; ?>
+
+            </div>
 
            <table class="user-table">
     <thead>
@@ -186,7 +323,16 @@ $users = $stmt_users->get_result();
             <?php endwhile; ?>
         <?php else: ?>
             <tr>
-                <td colspan="8" style="text-align:center;">No users submitted yet.</td>
+                <td colspan="8" style="text-align:center;">
+                    <?php if ($search !== ''): ?>
+                        No users found matching "<?= htmlspecialchars($search) ?>"
+                        <?php if ($search_col !== 'all'): ?>
+                            in <strong><?= htmlspecialchars($col_labels[$search_col]) ?></strong>
+                        <?php endif; ?>.
+                    <?php else: ?>
+                        No users submitted yet.
+                    <?php endif; ?>
+                </td>
             </tr>
         <?php endif; ?>
     </tbody>

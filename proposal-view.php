@@ -220,7 +220,6 @@ $flash = $_GET['flash'] ?? '';
                                             <i class="bi bi-person"></i>
                                         </span>
                                     <?php endif; ?>
-                                    <i class="bi bi-person-badge"></i>
                                     <?= htmlspecialchars($log['fname'] . ' ' . $log['lname']) ?>
                                     <span><?= htmlspecialchars($log['clubrole']) ?></span>
                                 </div>
