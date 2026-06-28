@@ -21,8 +21,8 @@ if (isset($condb)) {
     $stmt->bind_param("i", $user_id);
     $stmt->execute();
     $notif_result = $stmt->get_result();
-    while ($row = $notif_result->fetch_assoc()) {
-        if (!$row['is_read']) $unread_count++;
+    while ($notif_row = $notif_result->fetch_assoc()) {
+        if (!$notif_row['is_read']) $unread_count++;
     }
 }
 
@@ -32,6 +32,16 @@ if (!isset($user_picture) && isset($condb)) {
     $stmt_pic->bind_param("i", $user_id);
     $stmt_pic->execute();
     $user_picture = $stmt_pic->get_result()->fetch_assoc()['profilepicture'] ?? '';
+}
+
+// Fetch club role for the dropdown header (was previously incorrectly read from
+// the notification loop's $row variable, which was stale or undefined)
+$user_clubrole = '';
+if (isset($condb)) {
+    $stmt_role = $condb->prepare("SELECT clubrole FROM USER WHERE user_id = ?");
+    $stmt_role->bind_param("i", $user_id);
+    $stmt_role->execute();
+    $user_clubrole = $stmt_role->get_result()->fetch_assoc()['clubrole'] ?? '';
 }
 
 $topbar_picture = $user_picture ?? '';
@@ -50,7 +60,7 @@ $topbar_profile_path = !empty($topbar_picture)
 
     <ul class="sidebar-nav">
 
-        <?php if ($user_role == 'cycom'): ?>
+        <?php if ($user_role == 'CYCOM'): ?>
             <li>
                 <a href="/Presento/dashboard/dist/index.php"
                    class="<?= $current_page == 'index.php' ? 'active' : '' ?>">
@@ -60,22 +70,22 @@ $topbar_profile_path = !empty($topbar_picture)
             </li>
           
             <li>
-                <a href="/Presento/proposal_submission.php"
-                   class="<?= $current_page == 'proposal_submission.php' ? 'active' : '' ?>">
+                <a href="/Presento/proposal-submission.php?user_id=<?= urlencode($user_id) ?>"
+                   class="<?= $current_page == 'proposal-submission.php' ? 'active' : '' ?>">
                     <i class="bi bi-plus-circle"></i>
                     Proposal Submission
                 </a>
             </li>
             <li>
-                <a href="/Presento/proposal_list.php"
-                   class="<?= $current_page == 'proposal_list.php' ? 'active' : '' ?>">
+                <a href="/Presento/proposal-list.php?user_id=<?= urlencode($user_id) ?>"
+                   class="<?= $current_page == 'proposal-list.php' ? 'active' : '' ?>">
                     <i class="bi bi-file-earmark-text"></i>
                     Proposal List
                 </a>
             </li>
             <li>
-                <a href="/Presento/user_list.php"
-                   class="<?= $current_page == 'user_list.php' ? 'active' : '' ?>">
+                <a href="/Presento/user-list.php?user_id=<?= urlencode($user_id) ?>"
+                   class="<?= $current_page == 'user-list.php' ? 'active' : '' ?>">
                     <i class="bi bi-people"></i>
                     User List
                 </a>
@@ -97,15 +107,15 @@ $topbar_profile_path = !empty($topbar_picture)
                 </a>
             </li>
             <li>
-                <a href="/Presento/proposal_submission.php?user_id=<?= urlencode($user_id) ?>"
-                   class="<?= $current_page == 'proposal_submission.php' ? 'active' : '' ?>">
+                <a href="/Presento/proposal-submission.php?user_id=<?= urlencode($user_id) ?>"
+                   class="<?= $current_page == 'proposal-submission.php' ? 'active' : '' ?>">
                     <i class="bi bi-plus-circle"></i>
                     Proposal Submission
                 </a>
             </li>
             <li>
-                <a href="/Presento/proposal_list.php?user_id=<?= urlencode($user_id) ?>"
-                   class="<?= $current_page == 'proposal_list.php' ? 'active' : '' ?>">
+                <a href="/Presento/proposal-list.php?user_id=<?= urlencode($user_id) ?>"
+                   class="<?= $current_page == 'proposal-list.php' ? 'active' : '' ?>">
                     <i class="bi bi-file-earmark-text"></i>
                     Proposal List
                 </a>
@@ -163,7 +173,7 @@ $topbar_profile_path = !empty($topbar_picture)
             <div class="topbar-dropdown" id="userDropdown">
                 <div class="dropdown-header">
                     <div class="dropdown-name"><?= htmlspecialchars($user_name) ?></div>
-                    <div class="dropdown-role"><?= htmlspecialchars($user_role) ?></div>
+                    <div class="dropdown-role"><?= htmlspecialchars($user_role . ' ' . $user_clubrole) ?></div>
                 </div>
                 <div class="dropdown-divider"></div>
                 <a href="/Presento/manageprofile.php?user_id=<?= urlencode($user_id) ?>" class="dropdown-item">

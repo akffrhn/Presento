@@ -54,14 +54,14 @@ if (isset($condb)) {
             </li>
             <li>
                 <a href="/Presento/proposal_submission.php"
-                   class="<?= $current_page == 'proposal_submission.php' ? 'active' : '' ?>">
+                   class="<?= $current_page == 'proposal-submission.php' ? 'active' : '' ?>">
                     <i class="bi bi-plus-circle"></i>
                     Proposal Submission
                 </a>
             </li>
             <li>
                 <a href="/Presento/proposal_list.php"
-                   class="<?= $current_page == 'proposal_list.php' ? 'active' : '' ?>">
+                   class="<?= $current_page == 'proposal-list.php' ? 'active' : '' ?>">
                     <i class="bi bi-file-earmark-text"></i>
                     Proposal List
                 </a>
@@ -91,14 +91,14 @@ if (isset($condb)) {
                 </a>
             </li>
             <li>
-                <a href="/Presento/proposal_submission.php?user_id=<?= urlencode($user_id) ?>"
+                <a href="/Presento/proposal-submission.php?user_id=<?= urlencode($user_id) ?>"
                    class="<?= $current_page == 'proposal_submission.php' ? 'active' : '' ?>">
                     <i class="bi bi-plus-circle"></i>
                     Proposal Submission
                 </a>
             </li>
             <li>
-                <a href="/Presento/proposal_list.php"
+                <a href="/Presento/proposal-list.php"
                    class="<?= $current_page == 'proposal_list.php' ? 'active' : '' ?>">
                     <i class="bi bi-file-earmark-text"></i>
                     Proposal List

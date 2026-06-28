@@ -98,7 +98,7 @@ include('dbcon.php');
             <h2 style="color:#fff;" data-aos="fade-up" data-aos-delay="100">Think you have a better idea for an event for Computer Science Student?</h2>
             <p style="color:#fff;" data-aos="fade-up" data-aos-delay="200">Tell us about it!</p>
             <div class="d-flex mt-4" data-aos="fade-up" data-aos-delay="300">
-              <a href="#about" class="btn-get-started">Submit your dream event</a>
+              <a href="proposal-submission.php" class="btn-get-started">Submit your dream event</a>
             </div>
           </div>
         </div>
