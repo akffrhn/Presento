@@ -1,0 +1,270 @@
+/* =============================
+   CYCOM E-Proposal — Login & Profile Page
+   All rules scoped under .login-style to avoid
+   bleeding into navigation / mainc1.css
+============================= */
+
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700;800&display=swap');
+
+/* ===========================
+   SCOPED WRAPPER
+=========================== */
+
+.login-style {
+  font-family: "Roboto", sans-serif;
+  color: #fff;
+}
+
+/* ===========================
+   LAYOUT
+=========================== */
+
+.login-style .half {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+}
+
+.login-style .contents {
+  width: 50%;
+  padding: 80px 60px 80px 100px;
+  display: flex;
+  align-items: center;
+}
+
+.login-style .bg {
+  display: none;
+}
+
+/* ===========================
+   FORM CONTAINER
+=========================== */
+
+.login-style .col-md-7 {
+  width: 100%;
+  max-width: 480px;
+}
+
+/* ===========================
+   HEADINGS
+=========================== */
+
+.login-style h3 {
+  font-size: 26px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.3;
+  margin-bottom: 8px;
+  text-shadow: 0 2px 8px rgba(255, 255, 255, 0.4);
+}
+
+.login-style h3 strong {
+  font-weight: 800;
+}
+
+.login-style p.mb-4 {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 15px;
+  font-weight: 300;
+  margin-bottom: 28px;
+}
+
+/* ===========================
+   FORM GROUPS
+=========================== */
+
+.login-style .form-group {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  transition: border-color 0.3s ease, background 0.3s ease;
+}
+
+.login-style .form-group:focus-within {
+  background: rgba(255, 255, 255, 0.22);
+  border-color: rgba(255, 255, 255, 0.7);
+}
+
+.login-style .form-group.first,
+.login-style .form-group.last {
+  border-radius: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.35);
+}
+
+/* ===========================
+   LABELS
+=========================== */
+
+.login-style .form-group label {
+  font-size: 12px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.75);
+  display: block;
+  margin-bottom: 4px;
+  letter-spacing: 0.4px;
+}
+
+/* ===========================
+   INPUTS
+=========================== */
+
+.login-style .form-control {
+  background: #3d0222;
+  border: none;
+  border-radius: 4px;
+  color: #fff;
+  font-size: 17px;
+  font-weight: 400;
+  padding: 2px 4px;
+  width: 100%;
+  box-shadow: none;
+  outline: none;
+}
+
+.login-style .form-control::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 15px;
+}
+
+.login-style .form-control:focus {
+  background: #3d0222;
+  color: #fff;
+  box-shadow: none;
+  outline: none;
+}
+
+/* Autofill override */
+.login-style .form-control:-webkit-autofill,
+.login-style .form-control:-webkit-autofill:hover,
+.login-style .form-control:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px #3d0222 inset !important;
+  box-shadow: 0 0 0 1000px #3d0222 inset !important;
+  -webkit-text-fill-color: #fff !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+/* File input */
+.login-style .form-control[type="file"] {
+  font-size: 14px;
+  color: rgba(255,255,255,0.75);
+  padding: 4px;
+  cursor: pointer;
+}
+
+.login-style .form-control[type="file"]::file-selector-button {
+  background: #5c002f;
+  border: 1px solid #8a1d59;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 13px;
+  padding: 4px 12px;
+  margin-right: 10px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.login-style .form-control[type="file"]::file-selector-button:hover {
+  background: #8a1d59;
+}
+
+/* ===========================
+   BUTTONS
+=========================== */
+
+.login-style .btn-login {
+  width: 100%;
+  height: 56px;
+  margin-top: 22px;
+  border-radius: 8px;
+  background: #f3bc02;
+  color: #4a022a;
+  font-weight: 700;
+  font-size: 18px;
+  border: none;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.login-style .btn-login:hover {
+  background: #e0aa00;
+}
+
+/* ===========================
+   CHECKBOX & LINKS
+=========================== */
+
+.login-style .control {
+  display: flex;
+  align-items: center;
+  padding-left: 28px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.login-style a {
+  color: rgba(255,255,255,0.75);
+}
+
+/* ===========================
+   PROFILE CARD
+=========================== */
+
+.login-style .profile-card {
+  max-width: 480px;
+  margin: 2rem auto;
+}
+
+.login-style .profile-card h3 {
+  font-size: 26px;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 8px;
+  text-shadow: 0 2px 8px rgba(255,255,255,0.4);
+}
+
+.login-style .profile-card > p {
+  color: rgba(255,255,255,0.85);
+  font-size: 15px;
+  font-weight: 300;
+  margin-bottom: 28px;
+}
+
+.login-style .profile-preview {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 4px solid #8a1d59;
+  margin-bottom: 1.5rem;
+}
+
+/* ===========================
+   RESPONSIVE
+=========================== */
+
+@media (max-width: 1199px) {
+  .login-style .contents {
+    width: 100%;
+    padding: 80px 40px;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 600px) {
+  .login-style .contents {
+    padding: 60px 24px;
+  }
+
+  .login-style h3 {
+    font-size: 22px;
+  }
+
+  .login-style .btn-login {
+    font-size: 16px;
+    height: 50px;
+  }
+}
