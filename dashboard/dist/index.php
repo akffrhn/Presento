@@ -12,7 +12,7 @@ $user_name = $_SESSION['fname'];
 $user_role = $_SESSION['role'];
 
 // ── Proposal counts by status ────────────────────────────────
-if ($user_role == 'Student' || $user_role == 'cycom') {
+if ($user_role == 'cycom') {
     $result = $condb->query("SELECT status, COUNT(*) AS cnt FROM PROPOSAL GROUP BY status");
 } else {
     $stmt = $condb->prepare("SELECT status, COUNT(*) AS cnt FROM PROPOSAL WHERE user_id = ? GROUP BY status");
@@ -28,7 +28,7 @@ while ($row = $result->fetch_assoc()) {
 $total = array_sum($counts);
 
 // ── Recent proposals ─────────────────────────────────────────
-if ($user_role == 'Student' || $user_role == 'cycom') {
+if ($user_role == 'cycom') {
     $recent = $condb->query("
         SELECT p.proposal_id, p.title, p.status, p.date_submitted, u.fname AS submitter
         FROM PROPOSAL p
@@ -220,7 +220,7 @@ include 'navigation1.php';   // ← included AFTER session_start + db, so $_SESS
           <thead>
             <tr>
               <th>Title</th>
-              <?php if ($user_role == 'Student' || $user_role == 'cycom'): ?>
+              <?php if ($user_role == 'cycom'): ?>
               <th>By</th>
               <?php endif; ?>
               <th>Status</th>
@@ -244,7 +244,7 @@ include 'navigation1.php';   // ← included AFTER session_start + db, so $_SESS
                   </div>
                 </div>
               </td>
-              <?php if ($user_role == 'Student' || $user_role == 'cycom'): ?>
+              <?php if ($user_role == 'cycom'): ?>
               <td><?= htmlspecialchars($p['submitter']) ?></td>
               <?php endif; ?>
               <td><span class="status-badge <?= $badge ?>"><?= $p['status'] ?></span></td>

@@ -268,11 +268,11 @@ $flash = $_GET['flash'] ?? '';
                 <?php endif; ?>
 
             </div>
-
+  
         </div><!-- /page-wrap -->
     </div><!-- /content -->
 
-
+  <?php include('dashboard/dist/footer.php'); ?>
 </div><!-- /main-wrap -->
 
 </body>
