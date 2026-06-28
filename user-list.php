@@ -14,6 +14,8 @@ if (empty($_SESSION['user_id'])) {
 
 $current_user_id = (int) $_SESSION['user_id'];
 
+
+
 // Fetch the current logged-in user
 $query = "SELECT * FROM user WHERE user_id = ?";
 $stmt = $condb->prepare($query);
@@ -173,7 +175,7 @@ $users = $stmt_users->get_result();
                     <td><?= htmlspecialchars($row['clubrole']) ?></td>
                     <td>
                         <?php if ($is_high_council): ?>
-                            <a href="userupdate.php?user_id=<?= htmlspecialchars($row['user_id']) ?>">Update</a>
+                            <a href="user-update.php?user_id=<?= htmlspecialchars($row['user_id']) ?>">Update</a>
                             |
                             <a href="userdelete.php?user_id=<?= htmlspecialchars($row['user_id']) ?>">Delete</a>
                         <?php else: ?>

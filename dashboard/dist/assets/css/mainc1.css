@@ -349,7 +349,7 @@ body {
 .prop-date        { font-size: .73rem; color: #aaa; }
 
 .btn-view {
-  background: #f3bc02;
+  background: #937102;
   color: #fff;
   border: none;
   border-radius: 5px;
@@ -359,7 +359,7 @@ body {
   text-decoration: none;
   white-space: nowrap;
 }
-.btn-view:hover { background: #3a5ce0; color: #fff; }
+.btn-view:hover { background: #f3bc02; color: #fff; }
 
 /* Status badges */
 .status-badge { font-size: .69rem; padding: .25em .65em; border-radius: 50px; font-weight: 600; white-space: nowrap; }

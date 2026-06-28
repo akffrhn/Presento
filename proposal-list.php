@@ -112,9 +112,8 @@ $proposals = $pstmt->get_result();
     <link rel="stylesheet" href="/Presento/assets/css/style.css">
 
     <style>
-        body {
-            background: #491231;
-        }
+        /* moved to assets/css/style.css */
+        /* body background removed */
 
         .proposal-wrap {
             padding: 1.5rem;
@@ -293,7 +292,7 @@ $proposals = $pstmt->get_result();
                                     </span>
                                 </td>
                                 <td>
-                                    <a href="proposalview.php?proposal_id=<?= htmlspecialchars($row['proposal_id']) ?>">View</a>
+                                    <a href="proposal-view.php?id=<?= $row['proposal_id'] ?>">View</a>
                                     <?php if ($is_cycom): ?>
                                         |
                                         <a href="proposal-process.php?action=comment_form&proposal_id=<?= htmlspecialchars($row['proposal_id']) ?>&user_id=<?= htmlspecialchars($current_user_id) ?>">Comment</a>

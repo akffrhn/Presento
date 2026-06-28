@@ -118,7 +118,7 @@ include 'navigation1.php';   // ← included AFTER session_start + db, so $_SESS
         <div class="profile-email"><?= htmlspecialchars($user_email) ?></div>
     </div>
 
-    <a href="/Presento/proposal_submission.php?user_id=<?= urlencode($user_id) ?>" class="btn-new-proposal">
+    <a href="/Presento/proposal-submission.php?user_id=<?= urlencode($user_id) ?>" class="btn-new-proposal">
         <i class="bi bi-plus-lg"></i> New Proposal
     </a>
 
@@ -203,7 +203,7 @@ include 'navigation1.php';   // ← included AFTER session_start + db, so $_SESS
         <div class="panel-title">
           <i class="bi bi-clock-history" style="color:#4a6cf7;"></i>
           Recent Proposals
-          <a href="../../proposal_list.php">View All</a>
+          <a href="../../proposal-list.php?user_id=<?= urlencode($user_id) ?>">View All</a>
         </div>
 
         <?php
@@ -213,7 +213,7 @@ include 'navigation1.php';   // ← included AFTER session_start + db, so $_SESS
 
         <?php if (empty($rows)): ?>
           <div class="empty-state">
-            No proposals yet. <a href="/Presento/proposal_submission.php?user_id=<?= urlencode($user_id) ?>" style="color:#4a6cf7;">Submit one!</a>
+            No proposals yet. <a href="/Presento/proposal-submission.php?user_id=<?= urlencode($user_id) ?>" style="color:#4a6cf7;">Submit one!</a>
           </div>
         <?php else: ?>
         <table class="prop-table">
@@ -224,6 +224,7 @@ include 'navigation1.php';   // ← included AFTER session_start + db, so $_SESS
               <th>By</th>
               <?php endif; ?>
               <th>Status</th>
+              <th>Actions</th>
               <th></th>
             </tr>
           </thead>
@@ -248,7 +249,7 @@ include 'navigation1.php';   // ← included AFTER session_start + db, so $_SESS
               <?php endif; ?>
               <td><span class="status-badge <?= $badge ?>"><?= $p['status'] ?></span></td>
               <td>
-                <a href="../../proposal_detail.php?id=<?= $p['proposal_id'] ?>" class="btn-view">View</a>
+                <a href="../../proposal-view.php?id=<?= $p['proposal_id'] ?>" class="btn-view">View</a>
               </td>
             </tr>
             <?php endforeach; ?>

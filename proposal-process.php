@@ -1,6 +1,7 @@
 <?php
 session_start();
 include('dbcon.php');
+include('notification-helper.php');
 
 /* ============================================================
    AUTH CHECKS — must be logged in and have role 'CYCOM'
@@ -32,15 +33,21 @@ $ref_user_id = (int) ($_GET['user_id'] ?? $_POST['user_id'] ?? $current_user_id)
 if ($proposal_id <= 0) {
     die("<script>
             alert('Missing proposal_id');
-            window.location.href='myproposals.php?user_id=" . $ref_user_id . "';
+            window.location.href='proposal-list.php?user_id=" . $ref_user_id . "';
          </script>");
 }
 
 /* ============================================================
-   Helper: fetch proposal (need owner's user_id + title for notifications)
+   Helper: fetch proposal
+   NOTE: we select * here (rather than a fixed column list) so
+   that whatever extra columns your `proposal` table has
+   (description, content, category, date_submitted, file, etc.)
+   are automatically available to the comment view below.
+   Adjust the SELECT back to a fixed list if you'd rather be
+   explicit about columns.
 ============================================================ */
 function get_proposal(mysqli $condb, int $proposal_id): ?array {
-    $q = "SELECT proposal_id, user_id, title, status FROM proposal WHERE proposal_id = ?";
+    $q = "SELECT * FROM proposal WHERE proposal_id = ?";
     $s = $condb->prepare($q);
     $s->bind_param("i", $proposal_id);
     $s->execute();
@@ -57,7 +64,7 @@ if ($action === 'accept' || $action === 'reject') {
     if (!$is_high_council) {
         die("<script>
                 alert('Only High Council members can accept or reject proposals');
-                window.location.href='myproposals.php?user_id=" . $ref_user_id . "';
+                window.location.href='proposal-list.php?user_id=" . $ref_user_id . "';
              </script>");
     }
 
@@ -65,7 +72,7 @@ if ($action === 'accept' || $action === 'reject') {
     if (!$proposal) {
         die("<script>
                 alert('Proposal not found');
-                window.location.href='myproposals.php?user_id=" . $ref_user_id . "';
+                window.location.href='proposal-list.php?user_id=" . $ref_user_id . "';
              </script>");
     }
 
@@ -89,22 +96,16 @@ if ($action === 'accept' || $action === 'reject') {
 
     // 3. Notify the proposal owner
     $message = "Your proposal \"" . $proposal['title'] . "\" has been " . strtolower($new_status) . ".";
-    $notif = $condb->prepare(
-        "INSERT INTO notification (user_id, proposal_id, message, is_read, created_at)
-         VALUES (?, ?, ?, 0, NOW())"
-    );
-    $notif->bind_param("iis", $proposal['user_id'], $proposal_id, $message);
-    $notif->execute();
-    $notif->close();
+    send_notification($condb, (int) $proposal['user_id'], $proposal_id, $message);
 
     $flash = ($action === 'accept') ? 'accepted' : 'rejected';
 
-    header("Location: myproposals.php?user_id=" . $ref_user_id . "&flash=" . $flash);
+    header("Location: proposal-list.php?user_id=" . $ref_user_id . "&flash=" . $flash);
     exit;
 }
 
 /* ============================================================
-   ACTION: comment_form — show a small comment form (GET)
+   ACTION: comment_form — show proposal details + comment form (GET)
 ============================================================ */
 if ($action === 'comment_form') {
 
@@ -113,85 +114,223 @@ if ($action === 'comment_form') {
     if (!$proposal) {
         die("<script>
                 alert('Proposal not found');
-                window.location.href='myproposals.php?user_id=" . $ref_user_id . "';
+                window.location.href='proposal-list.php?user_id=" . $ref_user_id . "';
              </script>");
     }
+
+    // Fields straight from the `proposal` table schema
+    $objectives      = $proposal['objectives'] ?? '';
+    $activities      = $proposal['activities'] ?? '';
+    $submitted_date  = !empty($proposal['date_submitted'])
+        ? date('d M Y, h:i A', strtotime($proposal['date_submitted']))
+        : '';
+    $status          = $proposal['status'] ?? '';
     ?>
     <!doctype html>
     <html lang="en">
     <head>
         <meta charset="utf-8">
-        <title>Add Comment</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Add Comment — CYCOM E-Proposal</title>
+
+        <link href="/Presento/assets/img/favicon.png" rel="icon">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+        <link rel="stylesheet" href="/Presento/dashboard/dist/assets/css/mainc1.css">
+        <link rel="stylesheet" href="/Presento/assets/css/style.css">
+
         <style>
             body {
                 background: #491231;
-                font-family: Arial, sans-serif;
+            }
+
+            .form-wrap {
+                padding: 1.5rem;
+                max-width: 600px;
+            }
+
+            .form-wrap h3 {
                 color: #fff;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                height: 100vh;
-                margin: 0;
+                font-weight: 700;
+                margin-bottom: 1.25rem;
             }
-            .comment-box {
+
+            .user-form {
                 background: #5a1640;
-                padding: 2rem;
-                border-radius: 8px;
-                width: 400px;
                 border: 2px solid #fff;
+                border-radius: 8px;
+                padding: 2rem;
             }
-            .comment-box h3 {
-                margin-top: 0;
+
+            .form-row {
+                margin-bottom: 1.1rem;
             }
-            textarea {
+
+            .form-row label {
+                display: block;
+                color: #fff;
+                font-weight: 600;
+                margin-bottom: 6px;
+                font-size: 0.9rem;
+            }
+
+            .form-row textarea {
                 width: 100%;
                 min-height: 120px;
-                padding: 8px;
+                padding: 8px 10px;
                 border-radius: 4px;
                 border: 1px solid #ccc;
-                font-family: inherit;
+                font-family: Arial, sans-serif;
+                font-size: 0.95rem;
                 resize: vertical;
                 box-sizing: border-box;
             }
+
             .btn-row {
-                margin-top: 1rem;
                 display: flex;
                 justify-content: flex-end;
                 gap: 10px;
+                margin-top: 1.5rem;
             }
-            button, .btn-cancel {
-                padding: 8px 16px;
+
+            .btn-cancel,
+            .btn-submit {
+                padding: 9px 20px;
                 border-radius: 4px;
                 border: none;
                 cursor: pointer;
                 font-weight: 600;
                 text-decoration: none;
+                font-size: 0.95rem;
             }
-            button {
+
+            .btn-submit {
                 background: #fff;
                 color: #491231;
             }
+
             .btn-cancel {
                 background: transparent;
                 color: #fff;
                 border: 1px solid #fff;
             }
+
+            /* Proposal detail view */
+            .proposal-view {
+                background: #3c0e26;
+                border: 1px solid rgba(255,255,255,0.3);
+                border-radius: 6px;
+                padding: 1rem 1.25rem;
+                margin-bottom: 1.25rem;
+                max-height: 320px;
+                overflow-y: auto;
+            }
+            .proposal-view .meta-row {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 0.75rem 1.5rem;
+                margin-bottom: 0.75rem;
+                font-size: 0.85rem;
+                color: #e6c7d8;
+            }
+            .proposal-view .meta-row span strong {
+                color: #fff;
+                font-weight: 600;
+            }
+            .status-badge {
+                display: inline-block;
+                padding: 2px 10px;
+                border-radius: 999px;
+                font-size: 0.75rem;
+                font-weight: 700;
+                text-transform: uppercase;
+                letter-spacing: 0.03em;
+                background: rgba(255,255,255,0.15);
+                border: 1px solid rgba(255,255,255,0.4);
+            }
+            .proposal-view .description-label {
+                font-size: 0.8rem;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+                color: #e6c7d8;
+                margin-bottom: 0.25rem;
+            }
+            .proposal-view .description-text {
+                white-space: pre-wrap;
+                line-height: 1.5;
+                font-size: 0.95rem;
+            }
+            .description-text.empty {
+                color: #c9a3bb;
+                font-style: italic;
+            }
         </style>
     </head>
+
     <body>
-        <div class="comment-box">
-            <h3>Comment on: <?= htmlspecialchars($proposal['title']) ?></h3>
-            <form method="POST" action="proposal_process.php">
-                <input type="hidden" name="action" value="comment_submit">
-                <input type="hidden" name="proposal_id" value="<?= htmlspecialchars($proposal_id) ?>">
-                <input type="hidden" name="user_id" value="<?= htmlspecialchars($ref_user_id) ?>">
-                <textarea name="comment_text" placeholder="Write your comment..." required></textarea>
-                <div class="btn-row">
-                    <a class="btn-cancel" href="myproposals.php?user_id=<?= htmlspecialchars($ref_user_id) ?>">Cancel</a>
-                    <button type="submit">Submit</button>
+
+    <?php include('dashboard/dist/navigation1.php'); ?>
+
+    <div class="main-wrap">
+        <div class="content">
+
+            <div class="form-wrap">
+
+                <h3>Comment on: <?= htmlspecialchars($proposal['title']) ?></h3>
+
+                <!-- Proposal detail view, so the reviewer knows what they're commenting on -->
+                <div class="proposal-view">
+                    <div class="meta-row">
+                        <?php if ($status !== ''): ?>
+                            <span><strong>Status:</strong> <span class="status-badge"><?= htmlspecialchars($status) ?></span></span>
+                        <?php endif; ?>
+                        <?php if ($submitted_date !== ''): ?>
+                            <span><strong>Submitted:</strong> <?= htmlspecialchars($submitted_date) ?></span>
+                        <?php endif; ?>
+                    </div>
+
+                    <div class="description-label">Objectives</div>
+                    <?php if ($objectives !== ''): ?>
+                        <div class="description-text"><?= nl2br(htmlspecialchars($objectives)) ?></div>
+                    <?php else: ?>
+                        <div class="description-text empty">No objectives provided.</div>
+                    <?php endif; ?>
+
+                    <div class="description-label" style="margin-top: 0.9rem;">Activities</div>
+                    <?php if ($activities !== ''): ?>
+                        <div class="description-text"><?= nl2br(htmlspecialchars($activities)) ?></div>
+                    <?php else: ?>
+                        <div class="description-text empty">No activities provided.</div>
+                    <?php endif; ?>
                 </div>
-            </form>
-        </div>
+
+                <form method="POST" action="proposal-process.php" class="user-form" id="commentForm">
+                    <input type="hidden" name="action" value="comment_submit">
+                    <input type="hidden" name="proposal_id" value="<?= htmlspecialchars($proposal_id) ?>">
+                    <input type="hidden" name="user_id" value="<?= htmlspecialchars($ref_user_id) ?>">
+
+                    <div class="form-row">
+                        <label for="comment_text">Comment</label>
+                        <textarea
+                            id="comment_text"
+                            name="comment_text"
+                            placeholder="Write your comment..."
+                            title="Comment cannot be empty"
+                            required></textarea>
+                    </div>
+
+                    <div class="btn-row">
+                        <a class="btn-cancel" href="proposal-list.php?user_id=<?= htmlspecialchars($ref_user_id) ?>">Cancel</a>
+                        <button type="submit" class="btn-submit">Submit</button>
+                    </div>
+                </form>
+
+            </div><!-- /form-wrap -->
+        </div><!-- /content -->
+
+        <?php include('dashboard/dist/footer.php'); ?>
+
+    </div><!-- /main-wrap -->
+
     </body>
     </html>
     <?php
@@ -211,7 +350,7 @@ if ($action === 'comment_submit') {
     if ($comment_text === '') {
         die("<script>
                 alert('Comment cannot be empty');
-                window.location.href='proposal_process.php?action=comment_form&proposal_id=" . $proposal_id . "&user_id=" . $ref_user_id . "';
+                window.location.href='proposal-process.php?action=comment_form&proposal_id=" . $proposal_id . "&user_id=" . $ref_user_id . "';
              </script>");
     }
 
@@ -219,7 +358,7 @@ if ($action === 'comment_submit') {
     if (!$proposal) {
         die("<script>
                 alert('Proposal not found');
-                window.location.href='myproposals.php?user_id=" . $ref_user_id . "';
+                window.location.href='proposal-list.php?user_id=" . $ref_user_id . "';
              </script>");
     }
 
@@ -234,15 +373,9 @@ if ($action === 'comment_submit') {
 
     // Notify the proposal owner
     $message = "New comment on your proposal \"" . $proposal['title'] . "\".";
-    $notif = $condb->prepare(
-        "INSERT INTO notification (user_id, proposal_id, message, is_read, created_at)
-         VALUES (?, ?, ?, 0, NOW())"
-    );
-    $notif->bind_param("iis", $proposal['user_id'], $proposal_id, $message);
-    $notif->execute();
-    $notif->close();
+    send_notification($condb, (int) $proposal['user_id'], $proposal_id, $message);
 
-    header("Location: myproposals.php?user_id=" . $ref_user_id . "&flash=commented");
+    header("Location: proposal-list.php?user_id=" . $ref_user_id . "&flash=commented");
     exit;
 }
 
@@ -251,5 +384,5 @@ if ($action === 'comment_submit') {
 ============================================================ */
 die("<script>
         alert('Invalid action');
-        window.location.href='myproposals.php?user_id=" . $ref_user_id . "';
+        window.location.href='proposal-list.php?user_id=" . $ref_user_id . "';
      </script>");

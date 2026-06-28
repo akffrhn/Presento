@@ -9,21 +9,32 @@ $user_name = $_SESSION['fname'];
 $user_role = $_SESSION['role'];
 $user_id   = $_SESSION['user_id'];
 
-$unread_count = 0;
+$unread_count  = 0;
+$notifications = [];
 if (isset($condb)) {
-    $stmt = $condb->prepare("
-        SELECT n.is_read
-        FROM NOTIFICATION n
-        WHERE n.user_id = ?
-        ORDER BY n.created_at DESC
-        LIMIT 5
+    // True unread count across ALL notifications, not just the most recent 5
+    $countStmt = $condb->prepare("
+        SELECT COUNT(*) AS cnt
+        FROM notification
+        WHERE user_id = ? AND is_read = 0
     ");
-    $stmt->bind_param("i", $user_id);
-    $stmt->execute();
-    $notif_result = $stmt->get_result();
-    while ($notif_row = $notif_result->fetch_assoc()) {
-        if (!$notif_row['is_read']) $unread_count++;
-    }
+    $countStmt->bind_param("i", $user_id);
+    $countStmt->execute();
+    $unread_count = (int)($countStmt->get_result()->fetch_assoc()['cnt'] ?? 0);
+    $countStmt->close();
+
+    // Latest notifications to render inside the bell dropdown
+    $notifStmt = $condb->prepare("
+        SELECT notif_id, proposal_id, message, is_read, created_at
+        FROM notification
+        WHERE user_id = ?
+        ORDER BY created_at DESC
+        LIMIT 8
+    ");
+    $notifStmt->bind_param("i", $user_id);
+    $notifStmt->execute();
+    $notifications = $notifStmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    $notifStmt->close();
 }
 
 // Fetch $user_picture if the including page hasn't already
@@ -49,6 +60,67 @@ $topbar_profile_path = !empty($topbar_picture)
     ? "/Presento/assets/profile/" . htmlspecialchars($topbar_picture)
     : '';
 ?>
+
+<style>
+    .topbar-bell-wrap { position: relative; display: inline-flex; align-items: center; }
+
+    .notif-dropdown {
+        display: none;
+        position: absolute;
+        top: calc(100% + 10px);
+        right: 0;
+        width: 320px;
+        max-height: 380px;
+        background: #5a1640;
+        border: 1px solid rgba(255,255,255,0.2);
+        border-radius: 8px;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+        z-index: 1000;
+        overflow: hidden;
+        flex-direction: column;
+    }
+    .notif-dropdown.open { display: flex; }
+
+    .notif-dropdown-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 16px;
+        color: #fff;
+        font-weight: 700;
+        font-size: 0.9rem;
+    }
+    .notif-mark-all {
+        font-size: 0.76rem;
+        font-weight: 600;
+        color: #C89DB8;
+        text-decoration: none;
+    }
+    .notif-mark-all:hover { color: #fff; }
+
+    .notif-list { overflow-y: auto; max-height: 320px; }
+
+    .notif-item {
+        display: block;
+        padding: 10px 16px;
+        border-bottom: 1px solid rgba(255,255,255,0.08);
+        text-decoration: none;
+        color: #f3e8ef;
+    }
+    .notif-item:hover { background: rgba(255,255,255,0.06); color: #f3e8ef; text-decoration: none; }
+    .notif-item.unread { background: rgba(200,157,184,0.12); }
+    .notif-item.unread .notif-message { font-weight: 700; color: #fff; }
+
+    .notif-message { font-size: 0.85rem; line-height: 1.4; margin-bottom: 4px; }
+    .notif-time { font-size: 0.74rem; color: #d8c4d0; }
+
+    .notif-empty {
+        padding: 2rem 1rem;
+        text-align: center;
+        color: #d8c4d0;
+        font-size: 0.85rem;
+    }
+</style>
 
 
 <div class="sidebar">
@@ -88,6 +160,14 @@ $topbar_profile_path = !empty($topbar_picture)
                    class="<?= $current_page == 'user-list.php' ? 'active' : '' ?>">
                     <i class="bi bi-people"></i>
                     User List
+                </a>
+            </li>
+
+            <li>
+                <a href="/Presento/remark-search.php?user_id=<?= urlencode($user_id) ?>"
+                   class="<?= $current_page == 'remark-search.php' ? 'active' : '' ?>">
+                    <i class="bi bi-search"></i>
+                    Search Comments
                 </a>
             </li>
 
@@ -148,11 +228,44 @@ $topbar_profile_path = !empty($topbar_picture)
     <div class="topbar-right">
 
         <!-- Notification bell -->
-        <div class="topbar-bell">
-            <i class="bi bi-bell"></i>
-            <?php if ($unread_count > 0): ?>
-            <span class="bell-badge"><?= $unread_count ?></span>
-            <?php endif; ?>
+        <div class="topbar-bell-wrap" id="bellDropdownWrap">
+            <div class="topbar-bell" id="bellDropdownBtn">
+                <i class="bi bi-bell"></i>
+                <?php if ($unread_count > 0): ?>
+                <span class="bell-badge" id="bellBadge"><?= $unread_count ?></span>
+                <?php endif; ?>
+            </div>
+
+            <div class="topbar-dropdown notif-dropdown" id="notifDropdown">
+                <div class="dropdown-header notif-dropdown-header">
+                    <span>Notifications</span>
+                    <?php if ($unread_count > 0): ?>
+                        <a href="#" id="markAllReadBtn" class="notif-mark-all">Mark all read</a>
+                    <?php endif; ?>
+                </div>
+                <div class="dropdown-divider"></div>
+
+                <div class="notif-list" id="notifList">
+                    <?php if (empty($notifications)): ?>
+                        <div class="notif-empty">
+                            <i class="bi bi-bell-slash" style="font-size:1.3rem;display:block;margin-bottom:6px;"></i>
+                            No notifications yet.
+                        </div>
+                    <?php else: ?>
+                        <?php foreach ($notifications as $n): ?>
+                            <a href="/Presento/proposal-view.php?id=<?= (int)$n['proposal_id'] ?>"
+                               class="notif-item <?= $n['is_read'] ? '' : 'unread' ?>"
+                               data-notif-id="<?= (int)$n['notif_id'] ?>">
+                                <div class="notif-message"><?= htmlspecialchars($n['message']) ?></div>
+                                <div class="notif-time">
+                                    <i class="bi bi-clock"></i>
+                                    <?= date('d M Y, h:i A', strtotime($n['created_at'])) ?>
+                                </div>
+                            </a>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </div>
+            </div>
         </div>
 
         <!-- User dropdown -->
@@ -197,17 +310,67 @@ $topbar_profile_path = !empty($topbar_picture)
 
     btn.addEventListener('click', function (e) {
         e.stopPropagation();
-        var open = dropdown.classList.toggle('open');
+        dropdown.classList.toggle('open');
+        bellDropdown.classList.remove('open');
+        var open = dropdown.classList.contains('open');
         chevron.style.transform = open ? 'rotate(180deg)' : '';
-    });
-
-    document.addEventListener('click', function () {
-        dropdown.classList.remove('open');
-        chevron.style.transform = '';
     });
 
     dropdown.addEventListener('click', function (e) {
         e.stopPropagation();
     });
+
+    // ── Notification bell dropdown ──
+    var bellBtn      = document.getElementById('bellDropdownBtn');
+    var bellDropdown = document.getElementById('notifDropdown');
+
+    bellBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        bellDropdown.classList.toggle('open');
+        dropdown.classList.remove('open');
+        chevron.style.transform = '';
+    });
+
+    bellDropdown.addEventListener('click', function (e) {
+        e.stopPropagation();
+    });
+
+    document.addEventListener('click', function () {
+        dropdown.classList.remove('open');
+        bellDropdown.classList.remove('open');
+        chevron.style.transform = '';
+    });
+
+    // Mark a single notification read as soon as it's clicked (fires before navigation)
+    document.querySelectorAll('.notif-item.unread').forEach(function (item) {
+        item.addEventListener('click', function () {
+            var notifId = this.getAttribute('data-notif-id');
+            var data = new URLSearchParams();
+            data.append('action', 'mark_one');
+            data.append('notif_id', notifId);
+            navigator.sendBeacon('/Presento/notification-mark-read.php', data);
+        });
+    });
+
+    // Mark all read
+    var markAllBtn = document.getElementById('markAllReadBtn');
+    if (markAllBtn) {
+        markAllBtn.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            fetch('/Presento/notification-mark-read.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'action=mark_all'
+            }).then(function () {
+                document.querySelectorAll('.notif-item.unread').forEach(function (el) {
+                    el.classList.remove('unread');
+                });
+                var badge = document.getElementById('bellBadge');
+                if (badge) badge.remove();
+                markAllBtn.remove();
+            });
+        });
+    }
 })();
 </script>
