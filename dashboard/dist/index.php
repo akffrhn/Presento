@@ -10,9 +10,10 @@ if (!isset($_SESSION['user_id'])) {
 $user_id   = $_SESSION['user_id'];
 $user_name = $_SESSION['fname'];
 $user_role = $_SESSION['role'];
+$clubrole = $_SESSION['clubrole'];
 
 // ── Proposal counts by status ────────────────────────────────
-if ($user_role == 'cycom') {
+if ($user_role == 'CYCOM') {
     $result = $condb->query("SELECT status, COUNT(*) AS cnt FROM PROPOSAL GROUP BY status");
 } else {
     $stmt = $condb->prepare("SELECT status, COUNT(*) AS cnt FROM PROPOSAL WHERE user_id = ? GROUP BY status");
@@ -28,7 +29,7 @@ while ($row = $result->fetch_assoc()) {
 $total = array_sum($counts);
 
 // ── Recent proposals ─────────────────────────────────────────
-if ($user_role == 'cycom') {
+if ($user_role == 'CYCOM') {
     $recent = $condb->query("
         SELECT p.proposal_id, p.title, p.status, p.date_submitted, u.fname AS submitter
         FROM PROPOSAL p

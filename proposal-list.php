@@ -62,7 +62,7 @@ $is_cycom = ($session_role === 'CYCOM');
 $session_club_role = $_SESSION['clubrole'] ?? '';
 $is_high_council = ($session_club_role === 'High Council');
 
-// Flash message after accept/reject/comment actions
+// Flash message after accept/reject/comment/update actions
 $flash = $_GET['flash'] ?? '';
 
 if ($is_cycom) {
@@ -112,9 +112,6 @@ $proposals = $pstmt->get_result();
     <link rel="stylesheet" href="/Presento/assets/css/style.css">
 
     <style>
-        /* moved to assets/css/style.css */
-        /* body background removed */
-
         .proposal-wrap {
             padding: 1.5rem;
         }
@@ -205,6 +202,10 @@ $proposals = $pstmt->get_result();
             color: #fff;
             text-decoration: underline;
         }
+
+        .flash-success { background: #28a745; color: #fff; padding: 10px 16px; border-radius: 4px; margin-bottom: 1rem; }
+        .flash-warning { background: #b8860b; color: #fff; padding: 10px 16px; border-radius: 4px; margin-bottom: 1rem; }
+        .flash-danger  { background: #C89DB8; color: #491231; padding: 10px 16px; border-radius: 4px; margin-bottom: 1rem; }
     </style>
 </head>
 
@@ -220,17 +221,13 @@ $proposals = $pstmt->get_result();
             <h3>Proposal List</h3>
 
             <?php if ($flash === 'accepted'): ?>
-                <div style="background:#28a745; color:#fff; padding:10px 16px; border-radius:4px; margin-bottom:1rem;">
-                    Proposal accepted.
-                </div>
+                <div class="flash-success">Proposal accepted.</div>
             <?php elseif ($flash === 'rejected'): ?>
-                <div style="background:#C89DB8; color:#491231; padding:10px 16px; border-radius:4px; margin-bottom:1rem;">
-                    Proposal rejected.
-                </div>
+                <div class="flash-danger">Proposal rejected.</div>
             <?php elseif ($flash === 'commented'): ?>
-                <div style="background:#b8860b; color:#fff; padding:10px 16px; border-radius:4px; margin-bottom:1rem;">
-                    Comment submitted.
-                </div>
+                <div class="flash-warning">Comment submitted.</div>
+            <?php elseif ($flash === 'proposal_updated'): ?>
+                <div class="flash-success">Proposal updated successfully.</div>
             <?php endif; ?>
 
             <div class="proposal-toolbar">
@@ -265,12 +262,19 @@ $proposals = $pstmt->get_result();
                             <th style="width:180px;">Submitted By</th>
                         <?php endif; ?>
                         <th style="width:160px;">Status</th>
-                        <th style="width:160px;">Action</th>
+                        <th style="width:200px;">Action</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php if ($proposals->num_rows > 0): ?>
                         <?php $no = 1; while ($row = $proposals->fetch_assoc()): ?>
+                            <?php
+                                // Is the logged-in user the owner of this specific proposal?
+                                $is_owner = ((int) $row['user_id'] === $session_user_id);
+                                // A proposal can only be updated while it's still Submitted
+                                // (not yet picked up by a reviewer). Adjust this rule as needed.
+                                $is_editable = ($row['status'] === 'Submitted');
+                            ?>
                             <tr>
                                 <td><?= $no++ ?></td>
                                 <td><?= htmlspecialchars($row['title']) ?></td>
@@ -293,7 +297,15 @@ $proposals = $pstmt->get_result();
                                 </td>
                                 <td>
                                     <a href="proposal-view.php?id=<?= $row['proposal_id'] ?>">View</a>
-                                    <?php if ($is_cycom): ?>
+
+                                    <?php if ($is_owner && $is_editable): ?>
+                                        |
+                                        <a href="proposal-update.php?proposal_id=<?= htmlspecialchars($row['proposal_id']) ?>">Update</a>
+                                    <?php elseif ($is_owner && !$is_editable): ?>
+                                        | <span style="opacity:.5; cursor:not-allowed;" title="Cannot edit a proposal that is <?= htmlspecialchars($status) ?>">Update</span>
+                                    <?php endif; ?>
+
+                                    <?php if ($is_cycom && !$is_owner): ?>
                                         |
                                         <a href="proposal-process.php?action=comment_form&proposal_id=<?= htmlspecialchars($row['proposal_id']) ?>&user_id=<?= htmlspecialchars($current_user_id) ?>">Comment</a>
                                         <?php if ($is_high_council): ?>
@@ -304,9 +316,9 @@ $proposals = $pstmt->get_result();
                                             <a href="proposal-process.php?action=reject&proposal_id=<?= htmlspecialchars($row['proposal_id']) ?>&user_id=<?= htmlspecialchars($current_user_id) ?>"
                                                onclick="return confirm('Reject this proposal?');">Reject</a>
                                         <?php endif; ?>
-                                    <?php else: ?>
+                                    <?php elseif ($is_cycom && $is_owner): ?>
                                         |
-                                        <a href="proposalupdate.php?proposal_id=<?= htmlspecialchars($row['proposal_id']) ?>">Update</a>
+                                        <a href="proposal-process.php?action=comment_form&proposal_id=<?= htmlspecialchars($row['proposal_id']) ?>&user_id=<?= htmlspecialchars($current_user_id) ?>">Comment</a>
                                     <?php endif; ?>
                                 </td>
                             </tr>
