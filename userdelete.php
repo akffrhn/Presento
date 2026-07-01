@@ -27,15 +27,23 @@ if (!empty($_GET['user_id']))
     $deleted_id = DELETED_USER_ID;
     mysqli_stmt_bind_param($stmt_reassign, "ii", $deleted_id, $user_id);
     mysqli_stmt_execute($stmt_reassign);
+    mysqli_stmt_close($stmt_reassign);
 
-    # langkah 2: padam user sebenar
+    # langkah 2: pindahkan semua log ulasan (reviewed_by) milik user ini kepada placeholder
+    $reassign_log = "UPDATE proposal_status_log SET reviewed_by = ? WHERE reviewed_by = ?";
+    $stmt_log = mysqli_prepare($condb, $reassign_log);
+    mysqli_stmt_bind_param($stmt_log, "ii", $deleted_id, $user_id);
+    mysqli_stmt_execute($stmt_log);
+    mysqli_stmt_close($stmt_log);
+
+    # langkah 3: padam user sebenar
     $arahan = "DELETE FROM user WHERE user_id = ?";
     $stmt = mysqli_prepare($condb, $arahan);
     mysqli_stmt_bind_param($stmt, "i", $user_id);
 
     if (mysqli_stmt_execute($stmt))
     {
-        echo "<script>alert('Data was deleted ! Their proposals were reassigned to a Deleted User account.');
+        echo "<script>alert('Data was deleted! Their proposals and review logs were reassigned to a Deleted User account.');
         window.location.href='user-list.php';</script>";
     }
     else
@@ -43,6 +51,8 @@ if (!empty($_GET['user_id']))
         echo "<script>alert('Data can\\'t be deleted :(');
         window.location.href='user-list.php';</script>";
     }
+
+    mysqli_stmt_close($stmt);
 }
 else
 {

@@ -25,9 +25,6 @@ if ($session_role !== 'CYCOM' && $session_role !== 'Student') {
 
 /* ============================================================
    WHICH PROPOSAL ARE WE EDITING?
-   - On GET (link from proposal-list): identified by ?proposal_id=...
-   - On POST (form resubmit): identified by the hidden
-     'current_proposal_id' field.
 ============================================================ */
 $target_proposal_id = (int) ($_GET['proposal_id'] ?? $_POST['current_proposal_id'] ?? 0);
 
@@ -84,16 +81,23 @@ $old['activities']     = $existing_proposal['activities'];
 $old['status']         = $existing_proposal['status'];
 $old['date_submitted'] = $existing_proposal['date_submitted'];
 
+// Is this the owner editing their own proposal?
+$is_own_proposal   = ($proposal_owner_id === $current_user_id);
+$can_change_status = ($session_role === 'CYCOM' && !$is_own_proposal);
+
+// Will saving this automatically resubmit it?
+// True when the owner is editing a proposal that was Rejected.
+$will_resubmit = ($is_own_proposal && $existing_proposal['status'] === 'Rejected');
+
 /* ============================================================
    HANDLE FORM SUBMISSION
 ============================================================ */
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
-    // Re-verify ownership on POST (prevents spoofed form submissions)
+    // Re-verify ownership on POST
     if ((int) $existing_proposal['user_id'] !== $current_user_id && $session_role !== 'CYCOM') {
         die("<script>alert('You are not authorized to edit this proposal.');window.location.href='proposal-list.php';</script>");
     }
-
 
     $old['title']      = trim($_POST['title'] ?? '');
     $old['objectives'] = trim($_POST['objectives'] ?? '');
@@ -111,18 +115,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = "Activities are required.";
     }
 
-    $allowed_statuses = ['Submitted', 'Under Review', 'Accepted', 'Rejected'];
+    // If the owner is resubmitting a rejected proposal, force status to 'Resubmitted'
+    // so CYCOM can clearly see it has been revised and needs re-review.
+    if ($will_resubmit) {
+        $old['status'] = 'Resubmitted';
+    }
+
+    $allowed_statuses = ['Submitted', 'Under Review', 'Accepted', 'Rejected', 'Resubmitted'];
     if (!in_array($old['status'], $allowed_statuses, true)) {
         $errors[] = "Please select a valid status.";
     }
 
-    // Only CYCOM can change status — but only on proposals they don't own.
-    // When editing their OWN proposal, even CYCOM users act as the submitter.
-    $is_own_proposal = ($proposal_owner_id === $current_user_id);
-    if ($is_own_proposal && $old['status'] !== $existing_proposal['status']) {
-        $errors[] = "You cannot change the status of your own proposal.";
-    } elseif (!$is_own_proposal && $session_role !== 'CYCOM' && $old['status'] !== $existing_proposal['status']) {
-        $errors[] = "You are not authorized to change the proposal status.";
+    // Status change rules for non-resubmit cases
+    if (!$will_resubmit) {
+        if ($is_own_proposal && $old['status'] !== $existing_proposal['status']) {
+            $errors[] = "You cannot change the status of your own proposal.";
+        } elseif (!$is_own_proposal && $session_role !== 'CYCOM' && $old['status'] !== $existing_proposal['status']) {
+            $errors[] = "You are not authorized to change the proposal status.";
+        }
     }
 
     // Update the proposal
@@ -155,9 +165,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <link rel="stylesheet" href="/Presento/assets/css/style.css">
 
     <style>
-        body {
-            background: #491231;
-        }
+        body { background: #491231; }
 
         .form-wrap {
             padding: 1.5rem;
@@ -177,9 +185,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             padding: 2rem;
         }
 
-        .form-row {
-            margin-bottom: 1.1rem;
-        }
+        .form-row { margin-bottom: 1.1rem; }
 
         .form-row label {
             display: block;
@@ -207,7 +213,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         .form-row input:disabled,
-        .form-row textarea:disabled {
+        .form-row select:disabled {
             background: #e9e3e7;
             color: #777;
             cursor: not-allowed;
@@ -220,8 +226,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             margin-top: 1.5rem;
         }
 
-        .btn-cancel,
-        .btn-submit {
+        .btn-cancel, .btn-submit {
             padding: 9px 20px;
             border-radius: 4px;
             border: none;
@@ -231,10 +236,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             font-size: 0.95rem;
         }
 
-        .btn-submit {
-            background: #fff;
-            color: #491231;
-        }
+        .btn-submit { background: #fff; color: #491231; }
 
         .btn-cancel {
             background: transparent;
@@ -250,10 +252,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             margin-bottom: 1rem;
         }
 
-        .error-box ul {
-            margin: 0;
-            padding-left: 1.2rem;
-        }
+        .error-box ul { margin: 0; padding-left: 1.2rem; }
 
         .hint {
             color: #d8c4d0;
@@ -266,6 +265,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             font-size: 0.85rem;
             margin-bottom: 1.25rem;
         }
+
+        /* Notice banner shown when a rejected proposal will be resubmitted on save */
+        .resubmit-notice {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            background: #7a4500;
+            border: 1px solid #ffb347;
+            color: #ffe0b2;
+            border-radius: 6px;
+            padding: 12px 16px;
+            margin-bottom: 1.25rem;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .resubmit-notice i {
+            font-size: 1.2rem;
+            color: #ffb347;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        .resubmit-notice strong {
+            color: #fff;
+        }
     </style>
 </head>
 
@@ -275,7 +300,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 <div class="main-wrap">
     <div class="content">
-
         <div class="form-wrap">
 
             <h3>Update Proposal</h3>
@@ -286,6 +310,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 &nbsp;|&nbsp;
                 <i class="bi bi-calendar3"></i> Submitted: <strong><?= htmlspecialchars($old['date_submitted']) ?></strong>
             </div>
+
+            <!-- Resubmit notice — shown when the owner is editing a Rejected proposal -->
+            <?php if ($will_resubmit): ?>
+                <div class="resubmit-notice">
+                    <i class="bi bi-arrow-repeat"></i>
+                    <div>
+                        <strong>This proposal was rejected.</strong><br>
+                        Saving your changes will mark it as <strong>Resubmitted</strong> and notify the reviewers that it's ready for re-review.
+                    </div>
+                </div>
+            <?php endif; ?>
 
             <?php if (!empty($errors)): ?>
                 <div class="error-box">
@@ -333,37 +368,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         required><?= htmlspecialchars($old['activities']) ?></textarea>
                 </div>
 
-                <!-- Status — editable only by CYCOM reviewing someone else's proposal -->
-                <?php
-                    $own_proposal      = ($proposal_owner_id === $current_user_id);
-                    $can_change_status = ($session_role === 'CYCOM' && !$own_proposal);
-                ?>
+                <!-- Status field -->
                 <div class="form-row">
                     <label for="status">Status</label>
                     <select
                         id="status"
-                        name="status"
-                        <?= !$can_change_status ? 'disabled' : '' ?>
-                        required>
+                        name="<?= $can_change_status ? 'status' : 'status_display' ?>"
+                        <?= !$can_change_status ? 'disabled' : '' ?>>
                         <option value="" disabled <?= $old['status'] === '' ? 'selected' : '' ?>>Select status</option>
                         <option value="Submitted"    <?= $old['status'] === 'Submitted'    ? 'selected' : '' ?>>Submitted</option>
                         <option value="Under Review" <?= $old['status'] === 'Under Review' ? 'selected' : '' ?>>Under Review</option>
                         <option value="Accepted"     <?= $old['status'] === 'Accepted'     ? 'selected' : '' ?>>Accepted</option>
                         <option value="Rejected"     <?= $old['status'] === 'Rejected'     ? 'selected' : '' ?>>Rejected</option>
+                        <option value="Resubmitted"  <?= $old['status'] === 'Resubmitted'  ? 'selected' : '' ?>>Resubmitted</option>
                     </select>
+                    <!-- Always send the real status via hidden field when the select is disabled -->
                     <?php if (!$can_change_status): ?>
-                        <input type="hidden" name="status" value="<?= htmlspecialchars($old['status']) ?>">
+                        <input type="hidden" name="status"
+                               value="<?= htmlspecialchars($will_resubmit ? 'Resubmitted' : $old['status']) ?>">
                         <div class="hint">
-                            <?= $own_proposal
-                                ? 'You cannot change the status of your own proposal.'
-                                : 'Only CYCOM members can change the proposal status.' ?>
+                            <?php if ($will_resubmit): ?>
+                                Status will automatically change to <strong style="color:#ffb347;">Resubmitted</strong> when you save.
+                            <?php elseif ($is_own_proposal): ?>
+                                You cannot change the status of your own proposal.
+                            <?php else: ?>
+                                Only CYCOM members can change the proposal status.
+                            <?php endif; ?>
                         </div>
                     <?php endif; ?>
                 </div>
 
                 <div class="btn-row">
                     <a class="btn-cancel" href="proposal-list.php?user_id=<?= $current_user_id ?>">Cancel</a>
-                    <button type="submit" class="btn-submit">Save Changes</button>
+                    <button type="submit" class="btn-submit">
+                        <?= $will_resubmit ? 'Save & Resubmit' : 'Save Changes' ?>
+                    </button>
                 </div>
 
             </form>
@@ -372,12 +411,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div><!-- /content -->
 
     <?php include('dashboard/dist/footer.php'); ?>
-
 </div><!-- /main-wrap -->
 
 <script>
     const form = document.getElementById('updateProposalForm');
-
     form.addEventListener('submit', function (e) {
         if (!form.checkValidity()) {
             e.preventDefault();

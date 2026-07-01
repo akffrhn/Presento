@@ -23,7 +23,6 @@ $current_user_id = (int) $_GET['user_id'];
 $session_user_id = (int) $_SESSION['user_id'];
 $session_role    = $_SESSION['role'] ?? '';
 
-// Only the member themself or a 'CYCOM' role can view this page
 if ($current_user_id !== $session_user_id && $session_role !== 'CYCOM') {
     die("<script>
             alert('You are not authorized to view this page');
@@ -51,19 +50,36 @@ $user = $result->fetch_assoc();
 $user_picture = $user['profilepicture'] ?? '';
 
 /* ============================================================
-   FETCH PROPOSALS — with optional search by title
-   - cycom role: sees ALL proposals (any user), with submitter name
-   - regular member: sees only their own proposals
+   FETCH PROPOSALS
 ============================================================ */
 $search = trim($_GET['search'] ?? '');
 $is_cycom = ($session_role === 'CYCOM');
 
-// Only members of the High Council club role may Accept/Reject proposals
 $session_club_role = $_SESSION['clubrole'] ?? '';
 $is_high_council = ($session_club_role === 'High Council');
 
-// Flash message after accept/reject/comment/update actions
 $flash = $_GET['flash'] ?? '';
+
+/* ----------------------------------------------------------
+   Sorting — whitelist allowed sort keys to keep ORDER BY safe.
+   Default is 'status_asc' so proposals are grouped by status
+   on first load. The 'Sort by' placeholder only appears after
+   the user manually clears back to no selection (unlikely but
+   handled gracefully).
+---------------------------------------------------------- */
+$sortOptions = [
+    'date_desc'   => ['label' => 'Newest First',                  'sql' => 'p.date_submitted DESC'],
+    'date_asc'    => ['label' => 'Oldest First',                   'sql' => 'p.date_submitted ASC'],
+    'status_asc'  => ['label' => 'Status (Submitted → Rejected)',  'sql' => "FIELD(p.status, 'Submitted', 'Under Review', 'Resubmitted', 'Accepted', 'Rejected') ASC"],
+    'status_desc' => ['label' => 'Status (Rejected → Submitted)',  'sql' => "FIELD(p.status, 'Submitted', 'Under Review', 'Resubmitted', 'Accepted', 'Rejected') DESC"],
+];
+
+$default_sort = 'status_asc';
+$sort = $_GET['sort'] ?? $default_sort;
+if (!array_key_exists($sort, $sortOptions)) {
+    $sort = $default_sort;
+}
+$orderBySql = $sortOptions[$sort]['sql'];
 
 if ($is_cycom) {
     if ($search !== '') {
@@ -71,7 +87,7 @@ if ($is_cycom) {
                    FROM proposal p
                    JOIN user u ON u.user_id = p.user_id
                    WHERE p.title LIKE ?
-                   ORDER BY p.date_submitted DESC";
+                   ORDER BY $orderBySql";
         $pstmt = $condb->prepare($pquery);
         $likeTerm = "%" . $search . "%";
         $pstmt->bind_param("s", $likeTerm);
@@ -79,17 +95,17 @@ if ($is_cycom) {
         $pquery = "SELECT p.*, CONCAT(u.fname, ' ', u.lname) AS submitter_name
                    FROM proposal p
                    JOIN user u ON u.user_id = p.user_id
-                   ORDER BY p.date_submitted DESC";
+                   ORDER BY $orderBySql";
         $pstmt = $condb->prepare($pquery);
     }
 } else {
     if ($search !== '') {
-        $pquery = "SELECT * FROM proposal WHERE user_id = ? AND title LIKE ? ORDER BY date_submitted DESC";
+        $pquery = "SELECT * FROM proposal p WHERE p.user_id = ? AND p.title LIKE ? ORDER BY $orderBySql";
         $pstmt = $condb->prepare($pquery);
         $likeTerm = "%" . $search . "%";
         $pstmt->bind_param("is", $current_user_id, $likeTerm);
     } else {
-        $pquery = "SELECT * FROM proposal WHERE user_id = ? ORDER BY date_submitted DESC";
+        $pquery = "SELECT * FROM proposal p WHERE p.user_id = ? ORDER BY $orderBySql";
         $pstmt = $condb->prepare($pquery);
         $pstmt->bind_param("i", $current_user_id);
     }
@@ -112,9 +128,7 @@ $proposals = $pstmt->get_result();
     <link rel="stylesheet" href="/Presento/assets/css/style.css">
 
     <style>
-        .proposal-wrap {
-            padding: 1.5rem;
-        }
+        .proposal-wrap { padding: 1.5rem; }
 
         .proposal-wrap h3 {
             color: #fff;
@@ -134,12 +148,23 @@ $proposals = $pstmt->get_result();
         .search-form {
             display: flex;
             gap: 8px;
+            flex-wrap: wrap;
+            align-items: center;
         }
 
         .search-form input[type="text"] {
             padding: 6px 10px;
             border-radius: 4px;
             border: 1px solid #ccc;
+        }
+
+        .search-form select {
+            padding: 6px 10px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            background: #fff;
+            color: #491231;
+            font-weight: 600;
         }
 
         .search-form button {
@@ -171,9 +196,7 @@ $proposals = $pstmt->get_result();
             text-align: left;
         }
 
-        .proposal-table th {
-            font-weight: 700;
-        }
+        .proposal-table th { font-weight: 700; }
 
         .status-badge {
             display: inline-block;
@@ -187,21 +210,12 @@ $proposals = $pstmt->get_result();
         .status-underreview { background: #b8860b; }
         .status-accepted    { background: #28a745; }
         .status-rejected    { background: #C89DB8; color: #491231; }
+        .status-resubmitted { background: #1a6b8a; }
 
-        .proposal-table a {
-            color: #fff;
-            text-decoration: underline;
-        }
+        .proposal-table a { color: #fff; text-decoration: underline; }
+        .proposal-table a:hover { opacity: 0.8; }
 
-        .proposal-table a:hover {
-            opacity: 0.8;
-        }
-
-        .new-proposal-btn {
-            display: inline-block;
-            color: #fff;
-            text-decoration: underline;
-        }
+        .new-proposal-btn { display: inline-block; color: #fff; text-decoration: underline; }
 
         .flash-success { background: #28a745; color: #fff; padding: 10px 16px; border-radius: 4px; margin-bottom: 1rem; }
         .flash-warning { background: #b8860b; color: #fff; padding: 10px 16px; border-radius: 4px; margin-bottom: 1rem; }
@@ -240,11 +254,19 @@ $proposals = $pstmt->get_result();
                         value="<?= htmlspecialchars($search) ?>"
                         placeholder="Search by project name..."
                     >
+
+                    <select name="sort" onchange="this.form.submit()">
+                        <option value="" disabled <?= !array_key_exists($sort, $sortOptions) ? 'selected' : '' ?>>Sort by</option>
+                        <?php foreach ($sortOptions as $key => $opt): ?>
+                            <option value="<?= htmlspecialchars($key) ?>" <?= $sort === $key ? 'selected' : '' ?>>
+                                <?= htmlspecialchars($opt['label']) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+
                     <button type="submit">Search</button>
-                    <?php if ($search !== ''): ?>
-                        <a href="?user_id=<?= htmlspecialchars($current_user_id) ?>" class="clear-link">
-                            Clear
-                        </a>
+                    <?php if ($search !== '' || $sort !== $default_sort): ?>
+                        <a href="?user_id=<?= htmlspecialchars($current_user_id) ?>" class="clear-link">Clear</a>
                     <?php endif; ?>
                 </form>
 
@@ -269,11 +291,9 @@ $proposals = $pstmt->get_result();
                     <?php if ($proposals->num_rows > 0): ?>
                         <?php $no = 1; while ($row = $proposals->fetch_assoc()): ?>
                             <?php
-                                // Is the logged-in user the owner of this specific proposal?
                                 $is_owner = ((int) $row['user_id'] === $session_user_id);
-                                // A proposal can only be updated while it's still Submitted
-                                // (not yet picked up by a reviewer). Adjust this rule as needed.
-                                $is_editable = ($row['status'] === 'Submitted');
+                                $is_editable = $is_cycom
+                                    || in_array($row['status'], ['Submitted', 'Rejected'], true);
                             ?>
                             <tr>
                                 <td><?= $no++ ?></td>
@@ -288,6 +308,7 @@ $proposals = $pstmt->get_result();
                                             'Accepted'     => 'status-accepted',
                                             'Rejected'     => 'status-rejected',
                                             'Under Review' => 'status-underreview',
+                                            'Resubmitted'  => 'status-resubmitted',
                                             default        => 'status-submitted',
                                         };
                                     ?>

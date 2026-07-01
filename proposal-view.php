@@ -49,6 +49,23 @@ $is_cycom        = ($session_role === 'CYCOM');
 $is_high_council = ($session_clubrole === 'High Council');
 
 /* ============================================================
+   AUTO-MOVE TO "Under Review" WHEN A CYCOM MEMBER OPENS IT
+   Triggers on both 'Submitted' (first submission) and
+   'Resubmitted' (owner revised after rejection).
+============================================================ */
+if ($is_cycom && in_array($proposal['status'], ['Submitted', 'Resubmitted'], true)) {
+    $newStatus = 'Under Review';
+
+    $upd = $condb->prepare("UPDATE proposal SET status = ? WHERE proposal_id = ?");
+    $upd->bind_param("si", $newStatus, $proposal_id);
+    $upd->execute();
+    $upd->close();
+
+    // Keep in-memory copy in sync so the page reflects it immediately
+    $proposal['status'] = $newStatus;
+}
+
+/* ============================================================
    FETCH STATUS LOG / COMMENTS
 ============================================================ */
 $logStmt = $condb->prepare("
@@ -72,6 +89,7 @@ function statusBadge($status) {
         'Under Review' => ['color' => '#f0a500', 'icon' => 'bi-hourglass-split'],
         'Accepted'     => ['color' => '#28a745', 'icon' => 'bi-check-circle'],
         'Rejected'     => ['color' => '#dc3545', 'icon' => 'bi-x-circle'],
+        'Resubmitted'  => ['color' => '#1a6b8a', 'icon' => 'bi-arrow-repeat'],
     ];
     $s = $map[$status] ?? ['color' => '#999', 'icon' => 'bi-circle'];
     return "<span style='background:{$s['color']};color:#fff;padding:4px 12px;border-radius:20px;font-size:0.82rem;font-weight:600;'>
@@ -137,7 +155,6 @@ $flash = $_GET['flash'] ?? '';
             </a>
 
             <h3>Proposal Details</h3>
-
 
             <!-- Flash Messages -->
             <?php if ($flash === 'remark_updated'): ?>
@@ -252,8 +269,7 @@ $flash = $_GET['flash'] ?? '';
                                             <i class="bi bi-pencil"></i> Edit
                                         </a>
                                     <?php endif; ?>
-                                     <?php $is_author = ((int)$log['reviewed_by'] === $session_user_id); ?>
-                                     <?php if ($is_author || $is_high_council): ?>
+                                    <?php if ($is_author || $is_high_council): ?>
                                         <a href="remark-delete.php?log_id=<?= $log['log_id'] ?>"
                                            class="btn-delete-remark"
                                            onclick="return confirm('Delete this remark? This cannot be undone.');">
@@ -268,11 +284,11 @@ $flash = $_GET['flash'] ?? '';
                 <?php endif; ?>
 
             </div>
-  
+
         </div><!-- /page-wrap -->
     </div><!-- /content -->
 
-  <?php include('dashboard/dist/footer.php'); ?>
+    <?php include('dashboard/dist/footer.php'); ?>
 </div><!-- /main-wrap -->
 
 </body>

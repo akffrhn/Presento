@@ -78,6 +78,9 @@ if ($action === 'accept' || $action === 'reject') {
 
     $new_status = ($action === 'accept') ? 'Accepted' : 'Rejected';
     $remarks    = trim($_GET['remarks'] ?? $_POST['remarks'] ?? '');
+    if ($remarks === '') {
+        $remarks = 'No comment given';
+    }
 
     // 1. Update the proposal's current status
     $upd = $condb->prepare("UPDATE proposal SET status = ? WHERE proposal_id = ?");

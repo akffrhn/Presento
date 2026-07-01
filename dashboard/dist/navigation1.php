@@ -55,6 +55,12 @@ if (isset($condb)) {
     $user_clubrole = $stmt_role->get_result()->fetch_assoc()['clubrole'] ?? '';
 }
 
+// Role-aware dashboard heading, e.g. "CYCOM Exco Dashboard".
+// Only used for the topbar title on index.php — every other page keeps
+// its own plain title below, so this label disappears automatically
+// once the user navigates away from the dashboard.
+$dashboard_title = trim($user_role . ' ' . $user_clubrole) . ' Dashboard';
+
 $topbar_picture = $user_picture ?? '';
 $topbar_profile_path = !empty($topbar_picture)
     ? "/Presento/assets/profile/" . htmlspecialchars($topbar_picture)
@@ -215,13 +221,13 @@ $topbar_profile_path = !empty($topbar_picture)
     <span class="topbar-title">
         <?php
         $page_titles = [
-            'index.php'               => 'Dashboard',
+            'index.php'               => $dashboard_title,
             'proposal_submission.php' => 'Proposal Submission',
             'proposal_list.php'       => 'Proposal List',
             'user_list.php'           => 'User List',
             'manageprofile.php'       => 'Manage Profile',
         ];
-        echo $page_titles[$current_page] ?? 'Dashboard';
+        echo htmlspecialchars($page_titles[$current_page] ?? '');
         ?>
     </span>
 
