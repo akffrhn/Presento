@@ -289,7 +289,7 @@ function statusBadge(string $status): string {
                                 <option value="">All Reviewers</option>
                                 <?php foreach ($reviewerList as $r): ?>
                                     <option value="<?= $r['user_id'] ?>" <?= $filter_reviewer_id === (int)$r['user_id'] ? 'selected' : '' ?>>
-                                        <?= htmlspecialchars($r['fname'] . ' ' . $r['lname']) ?> (<?= htmlspecialchars($r['clubrole']) ?>)
+                                        <?= htmlspecialchars($r['fname'] . ' ' . $r['lname']) ?> 
                                     </option>
                                 <?php endforeach; ?>
                             </select>
