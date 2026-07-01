@@ -52,7 +52,6 @@ $current_page   = basename($_SERVER['PHP_SELF']);
             </a>
             <ul>
               <li><a href="/Presento/index.php#about">About</a></li>
-              <li><a href="#">Organizational Chart</a></li>
             </ul>
           </li>
 
@@ -88,16 +87,6 @@ $current_page   = basename($_SERVER['PHP_SELF']);
             </a>
             <ul>
               <li><a href="/Presento/index.php#about">About</a></li>
-              <li class="dropdown">
-                <a href="#">
-                  <span>Organizational Chart</span>
-                  <i class="bi bi-chevron-down toggle-dropdown"></i>
-                </a>
-                <ul>
-                  <li><a href="starter-page.html">2024/2025</a></li>
-                  <li><a href="#">2025/2026</a></li>
-                </ul>
-              </li>
             </ul>
           </li>
 
@@ -133,16 +122,6 @@ $current_page   = basename($_SERVER['PHP_SELF']);
             </a>
             <ul>
               <li><a href="/Presento/index.php#about">About</a></li>
-              <li class="dropdown">
-                <a href="#">
-                  <span>Organizational Chart</span>
-                  <i class="bi bi-chevron-down toggle-dropdown"></i>
-                </a>
-                <ul>
-                  <li><a href="#">2024/2025</a></li>
-                  <li><a href="#">2025/2026</a></li>
-                </ul>
-              </li>
             </ul>
           </li>
 
